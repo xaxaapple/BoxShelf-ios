@@ -1,0 +1,168 @@
+# Boxshelf Android (AYN Thor) build: ~15 minutes.
+#   apk: builds the debug APK. test: the fast device test (android-app/ci/web-device-test.js: the APK's own files in
+#   Chromium with Capacitor's real Android bridge, plus the full Thor flow on a pretend device), split in three groups
+#   that run at the same time (thor, screens, windows; beta.7: one after another it took ~38 min). publish: the APK
+#   (Boxshelf-thor-debug) only when all three groups passed. Results: each test job's Summary; screenshots in the
+#   "device-test-<group>" artifacts.
+# Optional full test on a real Android emulator: Actions → Android build → Run workflow → tick "Also run the emulator test".
+# Source of truth: android-app/ci/android.yml (copied here by android-app/ci/Install GitHub build.bat).
+name: Android build
+
+on:
+  push:
+    paths:
+      - 'renderer/**'
+      - 'shared/**'
+      - 'android-app/**'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+    inputs:
+      emulator:
+        description: 'Also run the emulator test (slow, ~15 min)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: android-app/package-lock.json
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Install Capacitor
+        working-directory: android-app
+        run: npm ci --no-audit --no-fund
+
+      - name: Copy the shared UI into the Android app
+        working-directory: android-app
+        run: npm run sync
+
+      - name: Build the debug APK
+        working-directory: android-app/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Keep the APK for the publish step (not published yet)
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-unchecked
+          path: android-app/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 1
+
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false # (every group finishes: one red group still shows the others' results)
+      matrix:
+        group: [thor, screens, windows]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: android-app/package-lock.json
+
+      - name: Install Capacitor and the test browser
+        working-directory: android-app
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Copy the shared UI into the Android app
+        working-directory: android-app
+        run: node copy-web.js
+
+      - name: Device test (${{ matrix.group }})
+        working-directory: android-app
+        run: node ci/web-device-test.js www ../out/device-test --group=${{ matrix.group }}
+
+      - name: Keep the test's screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-test-${{ matrix.group }}
+          path: out/device-test/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  publish:
+    # only when the APK built and all three test groups passed
+    needs: [apk, test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk-unchecked
+          path: unchecked
+      - name: Name the APK
+        run: |
+          mkdir -p out
+          V=$(node -p "require('./android-app/package.json').version")
+          cp unchecked/app-debug.apk "out/Boxshelf-thor-${V}-${GITHUB_SHA::7}-debug.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Boxshelf-thor-debug
+          path: out/*.apk
+          retention-days: 14
+
+  emulator:
+    # optional: a real Android emulator boot (slow and sometimes flaky on GitHub's machines)
+    if: github.event_name == 'workflow_dispatch' && inputs.emulator
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: Boxshelf-thor-debug
+          path: out
+      - name: Enable the emulator's hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Test on the Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          cores: 4
+          ram-size: 4096M
+          emulator-boot-timeout: 1200
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: bash android-app/ci/emulator-test.sh
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-test
+          path: out/device-test/
+          if-no-files-found: ignore
+          retention-days: 14

@@ -1,0 +1,15 @@
+{
+  "appId": "io.github.boxshelf",
+  "appName": "Boxshelf",
+  "webDir": "www",
+  "loggingBehavior": "none",
+  "android": {
+    "backgroundColor": "#0b0b14",
+    "allowMixedContent": false,
+    "captureInput": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 0 }
+  }
+}

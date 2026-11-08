@@ -1,0 +1,150 @@
+/* The handheld Art Studio (android-studio.js; Android build only). Laid out for the 1440 x 810 Android page: text never
+   under 14 px, every touch target at least 48 px. Moving around only changes transforms, opacity and a few classes. */
+#bsStudio{--acc:#9d8cff;--ink:#f3f5fb;--dim:rgba(243,245,251,.66);--faint:rgba(243,245,251,.42);--line:rgba(255,255,255,.1);--ok:#5fe0a0;
+  position:fixed;inset:0;z-index:60;color:var(--ink);font-family:'Lexend',system-ui,sans-serif;
+  background:radial-gradient(70% 60% at 18% 0%,color-mix(in srgb,var(--acc) 22%,transparent),transparent 70%),#07080e;
+  opacity:0;visibility:hidden;transition:opacity .22s ease,visibility 0s .22s;-webkit-user-select:none;user-select:none;touch-action:none}
+#bsStudio.on{opacity:1;visibility:visible;transition:opacity .22s ease,visibility 0s}
+/* a screen of its own: once it has faded in, the shelf and everything else under it is skipped (no styling, layout or
+   drawing; its layout is kept, so coming back is cheap). android-studio.js sets bst-full after the fade in. */
+body.bst-full>:not(#bsStudio):not(#thorHud):not(#bsDim):not(#bsBottomPreview):not(script):not(style):not(link){content-visibility:hidden}
+#bsStudio.fresh *{transition:none!important}
+#bsStudio button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#bsStudio svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+#bsStudio kbd{display:inline-grid;place-items:center;min-width:28px;height:28px;padding:0 6px;border-radius:14px;background:rgba(255,255,255,.14);
+  font:700 14px/1 'Lexend',sans-serif;color:#fff;margin-right:9px}
+
+/* header: back, which game, and a line that says what just happened */
+.bst-head{position:absolute;left:28px;right:28px;top:20px;height:68px;display:flex;align-items:center;gap:18px}
+.bst-back{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.07);flex:none}
+.bst-back:active{background:rgba(255,255,255,.16)}
+.bst-ht{min-width:0;flex:1}
+.bst-kick{font-size:15px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.bst-title{margin:2px 0 0;font-size:32px;font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bst-msg{max-width:560px;padding:12px 20px;border-radius:999px;background:rgba(255,255,255,.1);font-size:17px;font-weight:500;
+  opacity:0;transform:translateY(-8px);transition:opacity .25s,transform .3s cubic-bezier(.2,.8,.2,1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bst-msg.on{opacity:1;transform:none}
+.bst-msg.bad{background:rgba(255,110,110,.2)}
+
+/* body: the part rows (left) and the preview (right) */
+.bst-body{position:absolute;left:28px;right:28px;top:104px;bottom:78px}
+.bst-rows{position:absolute;left:0;top:0;bottom:0;right:404px}
+.bst-row{position:absolute;left:0;right:0;top:0;height:80px;border-radius:22px;background:rgba(255,255,255,.035);border:1px solid var(--line);
+  overflow:hidden;transition:transform .3s cubic-bezier(.2,.8,.2,1),height .3s cubic-bezier(.2,.8,.2,1),background .2s}
+.bst-row.on{height:266px;background:rgba(255,255,255,.065);border-color:color-mix(in srgb,var(--acc) 45%,transparent)}
+.bst-tab{position:absolute;left:0;top:0;bottom:0;width:172px;display:flex;flex-direction:column;justify-content:center;gap:12px;padding:0 18px;text-align:left}
+.bst-row:not(.on) .bst-tab{flex-direction:row;align-items:center;justify-content:flex-start}
+.bst-tt{display:flex;flex-direction:column;gap:4px;min-width:0}
+.bst-tt b{font-size:24px;font-weight:700}
+.bst-row:not(.on) .bst-tt b{font-size:21px}
+.bst-tt small{font-size:14px;color:var(--dim);line-height:1.3}
+.bst-tt small em{font-style:normal}
+.bst-row.mine .bst-tt small em{color:var(--acc)}
+.bst-row:not(.on) .bst-tt small span{display:none}
+.bst-mini{display:block;flex:none;width:58px;height:78px;border-radius:7px;background:rgba(255,255,255,.08) center/contain no-repeat;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.bst-row:not(.on) .bst-mini{width:40px;height:56px}
+.bst-mini.spine{width:18px}.bst-row:not(.on) .bst-mini.spine{width:14px}
+.bst-mini.disc{width:70px;height:70px;border-radius:50%}.bst-row:not(.on) .bst-mini.disc{width:50px;height:50px}
+.bst-mini.none{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.06) 0 6px,transparent 6px 12px)!important}
+.bst-row.on .bst-mini{display:none}
+
+/* a row's versions: one track that slides (and, for the small rows, is drawn at a smaller scale) */
+.bst-strip{position:absolute;left:172px;right:12px;top:0;bottom:0;overflow:hidden}
+.bst-track{position:absolute;left:10px;top:10px;height:242px;transform-origin:0 0;transition:transform .3s cubic-bezier(.2,.8,.2,1);will-change:transform}
+.bst-track.drag{transition:none}
+/* the tall row's last visible card fades out at the edge: there's more to the right */
+.bst-row.on .bst-strip::after{content:"";position:absolute;right:0;top:0;bottom:0;width:46px;background:linear-gradient(90deg,transparent,#11121a);pointer-events:none}
+.bst-row:not(.on) .bst-track{top:6px}
+.bst-card{position:absolute;left:0;top:0;height:242px;border-radius:16px;background:rgba(255,255,255,.05);padding:8px;display:flex;flex-direction:column;gap:8px;transition:opacity .18s,background .18s}
+/* (0.3.5) which one is under the cursor, at a glance: the others in the row step back */
+.bst-row.on .bst-card:not(.cur){opacity:.5}
+.bst-row.on .bst-card.cur{background:rgba(255,255,255,.13)}
+/* a set: its front, with its disc tucked in the corner; a look: its name, big */
+.bst-card .dsc{position:absolute;right:6px;bottom:6px;width:62px;height:62px;border-radius:50%;background:#222 center/cover no-repeat;box-shadow:0 4px 12px rgba(0,0,0,.6),0 0 0 2px rgba(255,255,255,.18);opacity:0;transition:opacity .25s}
+.bst-card .dsc.on{opacity:1}
+.bst-card.look .im{background:rgba(255,255,255,.06)}
+.bst-card.look .im .tag{font-size:40px;font-weight:800;letter-spacing:.04em;color:var(--ink)}
+.bst-card .im{position:relative;height:180px;border-radius:10px;overflow:hidden;display:grid;place-items:center;background:rgba(0,0,0,.28)}
+.bst-card .im img{position:absolute;inset:0;margin:auto;max-width:100%;max-height:100%;opacity:0;transition:opacity .25s}
+.bst-card .im img.on{opacity:1}
+.bst-card.disc .im img,.bst-bigin.disc img{height:100%;max-height:100%;width:auto;aspect-ratio:1;object-fit:cover;border-radius:50%}
+.bst-card .ph{position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.07) 50%,transparent 70%) 0 0/300% 100%;animation:bstWait 1.3s linear infinite}
+@keyframes bstWait{to{background-position:-150% 0}}
+.bst-row:not(.on) .bst-card .ph{animation:none}
+.bst-card .cap{display:flex;flex-direction:column;gap:2px;min-width:0;padding:0 4px;transition:opacity .2s}
+.bst-card .cap b{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bst-card .cap span{font-size:13.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bst-row:not(.on) .bst-card .cap{opacity:0}
+.bst-card.act .im{background:rgba(255,255,255,.04);border:2px dashed rgba(255,255,255,.2)}
+.bst-card.act .im span{font-size:54px;font-weight:300;color:var(--dim)}
+.bst-card .ok{position:absolute;right:2px;top:2px;width:38px;height:38px;border-radius:50%;background:var(--ok);color:#06281a;display:grid;place-items:center;
+  box-shadow:0 3px 12px rgba(0,0,0,.45);opacity:0;transform:scale(.6);transition:opacity .2s,transform .25s cubic-bezier(.2,.8,.2,1)}
+.bst-card .ok svg{stroke-width:3}
+.bst-card.use .ok{opacity:1;transform:none}
+.bst-card.use{background:color-mix(in srgb,var(--ok) 16%,transparent)}
+.bst-row:not(.on) .bst-card.use{outline:6px solid var(--ok);outline-offset:-3px}
+.bst-row:not(.on) .bst-card.use .ok{transform:scale(1.6);transform-origin:100% 0}
+.bst-card.busy .im::after{content:"";position:absolute;width:44px;height:44px;border-radius:50%;border:4px solid rgba(255,255,255,.25);border-top-color:#fff;animation:bstSpin .8s linear infinite}
+@keyframes bstSpin{to{transform:rotate(360deg)}}
+.bst-ring{position:absolute;left:0;top:0;height:254px;border-radius:21px;border:4px solid #fff;box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 60%,transparent),0 0 30px color-mix(in srgb,var(--acc) 55%,transparent);
+  pointer-events:none;opacity:0;transition:transform .2s cubic-bezier(.2,.8,.2,1),width .2s,opacity .15s}
+.bst-ring.on{opacity:1}
+.bst-note{position:absolute;left:24px;right:24px;top:50%;transform:translateY(-50%);font-size:17px;color:var(--dim);opacity:0;pointer-events:none}
+.bst-note.on{opacity:1}
+.bst-strip.wait .bst-note{color:var(--faint)}
+/* (an empty row's note sits after its action cards) */
+.bst-strip .bst-note.on{left:200px}
+
+/* (0.3.5) the full set: the case turned so its front and spine show, the disc out beside it, with the version under the
+   cursor put in. It turns to the back or the spine for those rows; the disc comes forward for the disc. Transitions only:
+   still whenever the cursor is. */
+.bst-pv{position:absolute;right:0;top:0;bottom:0;width:380px;display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:22px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.bst-set{position:relative;flex:1;min-height:0;display:grid;place-items:center;perspective:1100px;--cw:192px;--ch:270px;--cd:20px;--cc:#1b1c22;--dd:calc(var(--ch)*.6)}
+.bst-box{position:relative;z-index:1;width:var(--cw);height:var(--ch);transform-style:preserve-3d;transform:translateX(-28px) rotateY(26deg);transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+.bst-box i{position:absolute;display:block;background:var(--cc) center/100% 100% no-repeat;backface-visibility:hidden}
+.bst-box .f{inset:0;border-radius:3px;transform:translateZ(calc(var(--cd) / 2));box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.bst-box .b{inset:0;border-radius:3px;transform:rotateY(180deg) translateZ(calc(var(--cd) / 2))}
+.bst-box .s{top:0;bottom:0;left:calc(50% - var(--cd) / 2);width:var(--cd);transform:rotateY(-90deg) translateZ(calc(var(--cw) / 2));filter:brightness(.8)}
+.bst-box i.none,.bst-dsk.none{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.07) 0 6px,transparent 6px 12px)!important}
+.bst-dsk{position:absolute;left:50%;top:50%;width:var(--dd);height:var(--dd);margin:calc(var(--dd) / -2) 0 0 calc(var(--dd) / -2);border-radius:50%;background:#1d1e24 center/cover no-repeat;
+  box-shadow:0 12px 30px rgba(0,0,0,.6),inset 0 0 0 2px rgba(255,255,255,.14);transform:translateX(calc(var(--cw) * .44));transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+.bst-dsk::after{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,#0b0c10 0 9%,transparent 9.5%),conic-gradient(from 30deg,rgba(255,255,255,0),rgba(255,255,255,.18),rgba(255,255,255,0) 30%,rgba(255,255,255,.12) 55%,rgba(255,255,255,0) 70%)}
+.bst-set.cart .bst-dsk{border-radius:10px;background-size:contain;background-color:transparent;box-shadow:none}
+.bst-set.cart .bst-dsk::after{display:none}
+.bst-set[data-v="back"] .bst-box{transform:translateX(-28px) rotateY(154deg)}
+.bst-set[data-v="spine"] .bst-box{transform:translateX(-10px) rotateY(72deg)}
+.bst-set[data-v="spine"] .bst-dsk{transform:translateX(calc(var(--cw) * .44)) scale(.9)}
+.bst-set[data-v="disc"] .bst-box{transform:translateX(-64px) rotateY(26deg) scale(.82)}
+.bst-set[data-v="disc"] .bst-dsk{z-index:2;transform:translateX(calc(var(--cw) * .3)) scale(1.3)}
+.bst-what{display:flex;flex-direction:column;gap:4px;min-height:58px}
+.bst-what small{font-size:14px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.bst-what b{font-size:24px;font-weight:700;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bst-what span{font-size:15px;color:var(--dim);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bst-use{height:56px;border-radius:16px;background:var(--acc)!important;color:#0b0b14!important;font-size:19px!important;font-weight:700!important;display:flex;align-items:center;justify-content:center;gap:4px}
+.bst-use kbd{background:rgba(0,0,0,.2)!important;color:#0b0b14!important}
+.bst-use.inuse{background:color-mix(in srgb,var(--ok) 22%,transparent)!important;color:var(--ok)!important}
+.bst-use:disabled:not(.inuse){opacity:.5}
+/* (0.3.5) the set column stays with the bottom screen on too (0.3.4 hid it): the whole set at a glance up here */
+
+/* (0.3.4) the console-OS look (as Settings): a flat surface, the system font, square-ish corners, a solid white ring on
+   the version under the cursor (no glow); the console's own colour stays on the row's edge and the small labels */
+#bsStudio{background:#141518;font-family:Roboto,'Segoe UI',system-ui,sans-serif}
+#bsStudio kbd{border-radius:6px;font-family:Roboto,'Segoe UI',system-ui,sans-serif}
+#bsStudio .bst-back{border-radius:8px}
+#bsStudio .bst-msg{border-radius:8px}
+#bsStudio .bst-row{border-radius:10px;background:rgba(255,255,255,.03)}
+#bsStudio .bst-row.on{background:rgba(255,255,255,.055)}
+#bsStudio .bst-card{border-radius:8px}
+#bsStudio .bst-card .im{border-radius:6px}
+#bsStudio .bst-ring{border-radius:11px;border:5px solid #eceef2;box-shadow:0 0 0 2px rgba(0,0,0,.55);height:256px}
+#bsStudio .bst-row.on .bst-strip::after{background:linear-gradient(90deg,transparent,#18191c)}
+#bsStudio .bst-pv{border-radius:10px}
+#bsStudio .bst-use{border-radius:8px;background:#eceef2!important;color:#111216!important}
+#bsStudio .bst-hint{border-radius:8px}
+
+/* footer: the buttons, which are also touch targets */
+.bst-foot{position:absolute;left:28px;right:28px;bottom:14px;height:52px;display:flex;align-items:center;gap:10px}
+.bst-hint{height:52px;display:flex;align-items:center;padding:0 18px 0 12px;border-radius:26px;background:rgba(255,255,255,.06);font-size:17px!important;color:var(--dim)!important;transition:opacity .2s}
+.bst-hint:active{background:rgba(255,255,255,.14)}
+.bst-hint.off{opacity:.35}
+.bst-hint[data-k="b"]{margin-left:auto;color:var(--ink)!important;background:rgba(255,255,255,.1)}

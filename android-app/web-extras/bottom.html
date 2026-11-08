@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- Boxshelf's bottom screen (AYN Thor's second display, Android build only). Shown by BottomScreen.java in a
+     Presentation; fed by android-bottom.js on the main page. Opened on its own in a browser it shows a demo game. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Boxshelf bottom screen</title>
+<script src="perf-meter.js"></script>
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="bottom.css">
+</head>
+<body>
+<div id="stage">
+  <!-- the top screen's theme backdrop (two layers that cross-fade), under the console's glow -->
+  <div class="tbg" id="tbgA"></div><div class="tbg" id="tbgB"></div>
+  <div class="glow" id="glowA"></div><div class="glow" id="glowB"></div>
+  <header class="top">
+    <span class="sys"><i></i><b id="sysName"></b></span>
+    <span class="hint" id="hint"></span>
+    <button class="room-btn" type="button" id="roomBtn" aria-label="Room"><svg viewBox="0 0 24 24"><path d="M12 3v2.5M5.6 5.6l1.8 1.8M18.4 5.6l-1.8 1.8"/><path d="M8.5 13a3.5 3.5 0 1 1 7 0c0 1.4-.8 2.2-1.5 3v2h-4v-2c-.7-.8-1.5-1.6-1.5-3zM10 21h4"/></svg><span>Room</span></button>
+  </header>
+  <main id="views">
+    <section class="view v-case on" data-v="case">
+      <div class="scene" id="scene"></div>
+      <button class="nav prev" type="button" data-cmd="prev" aria-label="Previous game"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <button class="nav next" type="button" data-cmd="next" aria-label="Next game"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+      <div class="side" id="side">
+        <div class="side-txt" id="sideTxt"></div>
+        <div class="acts">
+          <button class="play" type="button" data-cmd="play"><svg viewBox="0 0 24 24"><path class="fill" d="M8 5.5v13l10.5-6.5z"/></svg><span>Play</span></button>
+          <button class="fav" type="button" data-cmd="fav" aria-label="Favourite"><svg viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.1A4.3 4.3 0 0 1 12 7.4a4.3 4.3 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z"/></svg></button>
+        </div>
+        <!-- a quick way in: the game's Details on the big screen (0.3.2; this was the bottom screen's own settings) -->
+        <div class="quick">
+          <button type="button" class="qk" data-cmd="details" id="detBtn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><span>Game details</span></button>
+        </div>
+      </div>
+      <!-- Inspect: the case alone, big, in the middle (everything else fades away). Opening it is offered only in there. -->
+      <button class="open-btn" type="button" id="inspectBtn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5M11 8v6M8 11h6"/></svg><span>Inspect</span></button>
+      <button class="focus-close" type="button" id="focusClose"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg><span>Close</span></button>
+      <!-- the disc (or cartridge) on its own: big, turned any way with a finger; a tap or Put it back returns it to the case -->
+      <div class="disc-solo" id="discSolo" aria-hidden="true"><div class="ds-pos"><div class="ds-spin" id="dsSpin"><div class="ds-face ds-front" id="dsFront"></div><div class="ds-face ds-back"></div></div></div></div>
+      <button class="ds-back-btn" type="button" id="discBack"><svg viewBox="0 0 24 24"><path d="M9 14l-4-4 4-4"/><path d="M5 10h9a5 5 0 0 1 0 10h-3"/></svg><span>Put it back</span></button>
+      <div class="open-bar" id="openBar">
+        <button type="button" id="openCase"><svg viewBox="0 0 24 24"><path d="M5 4.5h9.5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5zM15.5 7l3.5-1.5v13L15.5 17"/></svg><span>Open case</span></button>
+        <button type="button" id="openManual"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5zM4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg><span>Manual</span></button>
+      </div>
+    </section>
+    <!-- the museum's companion: the row on the wall, and the chosen case (shown instead of the tabs while the museum is open) -->
+    <section class="view v-museum" data-v="museum">
+      <div class="m-wall"><div class="m-lamp"></div><div class="m-track" id="mTrack"></div><div class="m-plank"></div></div>
+      <div class="m-card" id="mCard"></div>
+      <!-- the Room menu's looks as buttons: a touch changes the room on the big screen at once -->
+      <div class="m-room" id="mRoom" aria-hidden="true"></div>
+    </section>
+    <section class="view v-trophies" data-v="trophies"><div class="center" id="trophies"></div></section>
+    <!-- Shortcuts (0.3.2; was Controls): the buttons you choose; Edit picks which -->
+    <section class="view v-more" data-v="more"><div class="grid" id="more"></div><div class="sc-edit" id="scEdit" hidden></div>
+      <button class="sc-edit-btn" type="button" id="scEditBtn"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg><span>Edit</span></button></section>
+  </main>
+  <nav class="tabs" id="tabs">
+    <span class="pill"></span>
+    <button class="tab on" type="button" data-tab="case"><svg viewBox="0 0 24 24"><rect x="6" y="3.5" width="12" height="17" rx="1.6"/><path d="M9 3.5v17"/></svg><span>Case</span></button>
+    <!-- Box art: not a page of its own, it opens the Art Studio for this game on the big screen -->
+    <button class="tab" type="button" data-cmd="art" id="artBtn"><svg viewBox="0 0 24 24"><path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.2 0 1.8-.8 1.8-1.7 0-1.2-1-1.6-1-2.6 0-1 .8-1.7 1.9-1.7h2.1a3.7 3.7 0 0 0 3.7-3.7C20.5 6.8 16.7 3.5 12 3.5z"/><circle class="fill" cx="7.6" cy="11" r="1.3"/><circle class="fill" cx="10.4" cy="7.4" r="1.3"/><circle class="fill" cx="14.8" cy="7.6" r="1.3"/></svg><span>Box art</span></button>
+    <button class="tab" type="button" data-tab="trophies"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v3.5M8.5 20h7M10 16.5h4l.5 3.5h-5z"/></svg><span>Trophies</span></button>
+    <button class="tab" type="button" data-tab="more"><svg viewBox="0 0 24 24"><circle cx="7" cy="7" r="2.2"/><circle cx="17" cy="7" r="2.2"/><circle cx="7" cy="17" r="2.2"/><circle cx="17" cy="17" r="2.2"/></svg><span>Shortcuts</span></button>
+  </nav>
+</div>
+<script src="bottom.js"></script>
+</body>
+</html>

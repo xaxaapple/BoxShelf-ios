@@ -1,0 +1,101 @@
+# Boxshelf iOS build (~10-15 minutes on a GitHub macOS runner). Produces an UNSIGNED IPA: sign and install it on the
+# device with Sideloadly, AltStore or SideStore (a free Apple ID works; see ios-app/README.md).
+# Results: Actions → iOS build → latest run → Artifacts → Boxshelf-ios-unsigned (a zip holding Boxshelf-unsigned.ipa).
+# The build log is kept as its own artifact too, so a failed run can be read without opening the step list.
+name: iOS build
+
+on:
+  push:
+    paths:
+      - 'renderer/**'
+      - 'shared/**'
+      - 'android-app/web-extras/**'
+      - 'android-app/copy-web.js'
+      - 'ios-app/**'
+      - '.github/workflows/ios.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    runs-on: macos-26            # Capacitor 8 needs Xcode 26+; macos-26 images carry Xcode 26.x
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Pick the newest stable Xcode 26
+        run: |
+          XC=$(ls -d /Applications/Xcode_26*.app | grep -vi 'beta\|candidate' | sort -V | tail -1)
+          echo "Using $XC"
+          sudo xcode-select -s "$XC/Contents/Developer"
+          xcodebuild -version
+          swift --version
+
+      - name: Install Capacitor and the Boxshelf plugin
+        working-directory: ios-app
+        run: npm install --no-audit --no-fund
+
+      - name: Copy the shared UI (renderer/) into the iOS app
+        working-directory: ios-app
+        run: node copy-web.js
+
+      - name: Create the Xcode project (Swift Package Manager) and sync
+        working-directory: ios-app
+        run: |
+          npx cap add ios --packagemanager SPM
+          npx cap sync ios
+
+      - name: Make it Boxshelf (Info.plist, icon, plugin class)
+        working-directory: ios-app
+        run: bash ci/patch-ios-project.sh
+
+      - name: Resolve Swift packages
+        working-directory: ios-app/ios/App
+        run: xcodebuild -resolvePackageDependencies -project App.xcodeproj -scheme App
+
+      - name: Build (unsigned)
+        working-directory: ios-app
+        run: |
+          mkdir -p build
+          set -o pipefail
+          xcodebuild archive \
+            -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -archivePath build/Boxshelf.xcarchive \
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee build/xcodebuild.log | tail -n 60
+
+      - name: Pack the IPA
+        working-directory: ios-app/build
+        run: |
+          APP=$(ls -d Boxshelf.xcarchive/Products/Applications/*.app | head -1)
+          rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
+          test -f "Payload/$(basename "$APP")/www/index.html" || test -f "Payload/$(basename "$APP")/public/index.html" || { echo "::error::the web files are missing from the app"; exit 1; }
+          zip -qry Boxshelf-unsigned.ipa Payload
+          ls -lh Boxshelf-unsigned.ipa
+
+      - name: Keep the IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Boxshelf-ios-unsigned
+          path: ios-app/build/Boxshelf-unsigned.ipa
+          retention-days: 30
+
+      - name: Keep the build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-log
+          path: ios-app/build/xcodebuild.log
+          retention-days: 7
+          if-no-files-found: ignore

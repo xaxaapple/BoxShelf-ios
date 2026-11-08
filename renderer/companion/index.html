@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0a14">
+<meta name="color-scheme" content="dark">
+<meta name="referrer" content="no-referrer">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Boxshelf</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div id="app">
+  <!-- pairing: the PIN from the TV (filled in by the QR code) -->
+  <section id="pair" class="screen" hidden>
+    <div class="pair-card">
+      <img class="logo" src="/icon.svg" alt="">
+      <h1>Pair with Boxshelf</h1>
+      <p class="muted">Enter the 6-digit PIN shown on the TV in <b>Settings → Phone companion</b>.</p>
+      <form id="pairForm" autocomplete="off">
+        <input id="pin" class="pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="••••••" aria-label="PIN" autocomplete="one-time-code">
+        <input id="pname" class="field" maxlength="40" placeholder="Name this phone (optional)" aria-label="Phone name">
+        <button class="btn primary big" id="pairBtn" type="submit">Pair</button>
+      </form>
+      <p id="pairMsg" class="msg" role="status"></p>
+    </div>
+  </section>
+
+  <!-- the paired app -->
+  <section id="main" class="screen" hidden>
+    <header class="top">
+      <div class="brand"><img src="/icon.svg" alt=""><span>Boxshelf</span></div>
+      <div id="nowPlaying" class="now" hidden><span class="dot"></span><span id="nowTitle"></span><button id="nowQuit" class="chip warn" type="button">Quit</button></div>
+    </header>
+
+    <div id="tabLibrary" class="tab">
+      <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="q" type="search" placeholder="Search your games" aria-label="Search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+      <nav id="shelves" class="shelves" aria-label="Shelves"></nav>
+      <div id="grid" class="grid" aria-live="polite"></div>
+      <p id="libEmpty" class="empty" hidden></p>
+    </div>
+
+    <div id="tabRemote" class="tab" hidden>
+      <div class="remote">
+        <div class="shoulders"><button class="rb sh" data-b="lb" id="bLB">LB</button><button class="rb sh" data-b="rb" id="bRB">RB</button></div>
+        <div class="mid">
+          <div class="dpad" aria-label="D-pad">
+            <button class="rb d up" data-b="up" aria-label="Up"><i></i></button>
+            <button class="rb d left" data-b="left" aria-label="Left"><i></i></button>
+            <span class="d hub"></span>
+            <button class="rb d right" data-b="right" aria-label="Right"><i></i></button>
+            <button class="rb d down" data-b="down" aria-label="Down"><i></i></button>
+          </div>
+          <div class="faces" aria-label="Face buttons">
+            <button class="rb f top" data-b="y" id="fTop">Y</button>
+            <button class="rb f left" data-b="x" id="fLeft">X</button>
+            <button class="rb f right" data-b="b" id="fRight">B</button>
+            <button class="rb f bottom" data-b="a" id="fBottom">A</button>
+          </div>
+        </div>
+        <div class="sys">
+          <button class="rb s" data-b="view" id="bView">View</button>
+          <button class="rb s home" data-b="home" aria-label="Home"><img src="/icon.svg" alt=""></button>
+          <button class="rb s" data-b="start" id="bStart">Menu</button>
+        </div>
+        <p class="hint muted" id="remoteHint">Works on the shelf, Details, Settings, the museum and the Home menu.</p>
+      </div>
+    </div>
+
+    <div id="tabKeys" class="tab" hidden>
+      <div class="keys">
+        <p class="muted">Type here and it goes into the search box on the TV (Settings search, the museum finder, the archive finder).</p>
+        <input id="kb" class="field big" placeholder="Type…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" aria-label="Text for the TV">
+        <div class="row"><button class="btn" id="kbBack" type="button">⌫ Delete</button><button class="btn" id="kbClear" type="button">Clear</button><button class="btn primary" id="kbEnter" type="button">Enter</button></div>
+      </div>
+    </div>
+
+    <nav class="tabs" aria-label="Sections">
+      <button data-tab="Library" class="on"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="4" height="14" rx="1"/><rect x="9" y="5" width="4" height="14" rx="1"/><path d="M15 6l4 1-3 12-4-1z"/></svg>Library</button>
+      <button data-tab="Remote"><svg viewBox="0 0 24 24"><path d="M7 8h10a4 4 0 0 1 4 4v1a3 3 0 0 1-5 2l-1-1H9l-1 1a3 3 0 0 1-5-2v-1a4 4 0 0 1 4-4z"/></svg>Remote</button>
+      <button data-tab="Keys"><svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>Keyboard</button>
+    </nav>
+  </section>
+
+  <!-- a game -->
+  <section id="game" class="sheet" hidden aria-modal="true" role="dialog">
+    <div class="g-hero"><img id="gHero" alt=""><button class="close" id="gClose" aria-label="Back">‹</button></div>
+    <div class="g-body">
+      <div class="g-head"><img id="gCover" class="g-cover" alt=""><div><p id="gShelf" class="kicker"></p><h2 id="gTitle"></h2><p id="gMeta" class="muted small"></p></div></div>
+      <button id="gPlay" class="btn primary play" type="button"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>Play on TV</span></button>
+      <div id="gAch" class="ach" hidden></div>
+      <button id="gManual" class="btn wide" type="button" hidden></button>
+      <p id="gPdf" class="muted small" hidden>This game's manual is a PDF: open it on the TV (Inspect → Manual).</p>
+      <p id="gDesc" class="desc"></p>
+      <dl id="gFacts" class="facts"></dl>
+    </div>
+  </section>
+
+  <!-- the manual's pages -->
+  <section id="manual" class="sheet dark" hidden aria-modal="true" role="dialog">
+    <header class="m-top"><button class="close" id="mClose" aria-label="Back">‹</button><span id="mTitle"></span><span id="mCount" class="muted small"></span></header>
+    <div id="mPages" class="m-pages"></div>
+  </section>
+
+  <!-- "Quit the running game?" -->
+  <div id="ask" class="ask" hidden role="alertdialog" aria-modal="true">
+    <div class="ask-card"><h3 id="askTitle"></h3><p id="askText" class="muted"></p><div class="row"><button class="btn" id="askNo" type="button">Cancel</button><button class="btn primary warnbg" id="askYes" type="button">Quit and play</button></div></div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+# Boxshelf uses an ALLOWLIST: everything is ignored, then only the app's own source is added back.
+# This keeps emulators, ROMs, BIOS, saves, art, manuals, magazines, music, console models, builds and
+# personal data out of the repo, even when new folders appear next to the app.
+
+# 1. Ignore everything
+/*
+
+# 2. Add back the app source
+!/.gitignore
+!/package.json
+!/package-lock.json
+!/main.js
+!/preload.js
+!/preload-home.js
+!/preload-wum.js
+!/main/
+!/renderer/
+!/docs/
+!/shared/
+!/android-app/
+!/linux/
+!/scripts/
+!/.github/
+!/README.md
+!/HANDOFF.md
+!/LICENSE
+!/THIRD-PARTY-NOTICES.md
+!/*.bat
+
+# 3. Never commit these, even inside allowed folders
+node_modules/
+dist/
+*.log
+*.zip
+*.7z
+*.exe
+*.iso
+*.rvz
+*.nsp
+*.xci
+*.cia
+*.3ds
+*.wua
+*.pkg
+*.bin
+*.boxshelf-bak
+.env
+*.key
+keys.txt
+prod.keys
+title.keys
+*.keystore
+*.jks
+# the 3D PC model isn't part of the public source (its origin isn't recorded)
+renderer/models/*.glb

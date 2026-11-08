@@ -1,0 +1,57 @@
+{
+  "name": "boxshelf",
+  "productName": "Boxshelf",
+  "version": "1.82.0-beta.10",
+  "description": "TV-style launcher for emulators, Steam and media apps",
+  "license": "GPL-3.0-only",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "windowed": "electron . --windowed",
+    "dist": "electron-builder --win portable",
+    "dist:linux": "electron-builder --linux AppImage --publish never"
+  },
+  "devDependencies": {
+    "electron": "^39.2.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "io.github.boxshelf",
+    "productName": "Boxshelf",
+    "files": [
+      "main.js",
+      "preload.js",
+      "preload-home.js",
+      "preload-wum.js",
+      "main/**",
+      "shared/**",
+      "renderer/**",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "renderer/app-icon.png"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "renderer/app-icon.png",
+      "category": "Game",
+      "synopsis": "TV-style launcher for emulators and Steam",
+      "artifactName": "Boxshelf-${version}-linux.${ext}"
+    },
+    "artifactBuildStarted": "scripts/linux-wrapper.js",
+    "asar": true,
+    "asarUnpack": [
+      "main/lbindex.js"
+    ],
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true,
+      "enableCookieEncryption": true
+    }
+  }
+}
